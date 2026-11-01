@@ -95,7 +95,17 @@ Requisitos:
 }
 
 async function ensureStorageBucket(): Promise<void> {
-  const base = process.env.SUPABASE_URL!;\n  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;\n  const response = await fetch(`${base.replace(/\\/$/, "")}/storage/v1/bucket`, {\n    method: "POST",\n    headers: { Authorization: `Bearer ${key}`, apikey: key, "Content-Type": "application/json" },\n    body: JSON.stringify({ id: "minimal-cinema", name: "minimal-cinema", public: false, file_size_limit: 524288000 })\n  });\n  if (!response.ok && response.status !== 409) throw new Error("Não foi possível preparar o bucket privado do Supabase Storage.");\n}\n\nasync function uploadArtifact(path: string, bytes: Buffer, contentType: string): Promise<string> {
+  const base = process.env.SUPABASE_URL!;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  const response = await fetch(`${base.replace(/\\/$/, "")}/storage/v1/bucket`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, apikey: key, "Content-Type": "application/json" },
+    body: JSON.stringify({ id: "minimal-cinema", name: "minimal-cinema", public: false, file_size_limit: 524288000 })
+  });
+  if (!response.ok && response.status !== 409) throw new Error("Não foi possível preparar o bucket privado do Supabase Storage.");
+}
+
+async function uploadArtifact(path: string, bytes: Buffer, contentType: string): Promise<string> {
   const base = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!base || !key) throw new Error("Configure SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY na Vercel para habilitar a entrega dos arquivos.");
