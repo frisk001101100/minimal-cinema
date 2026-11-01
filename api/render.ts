@@ -25,7 +25,7 @@ function validate(value: unknown): Input | null {
   const v = value as Record<string, unknown>;
   if (!["openai", "anthropic", "gemini"].includes(String(v.provider))) return null;
   if (typeof v.apiKey !== "string" || v.apiKey.length < 10 || v.apiKey.length > 500) return null;
-  if (typeof v.idea !== "string" || !v.idea.trim() || v.idea.length > 4000) return null;
+  if (typeof v.idea !== "string" || !v.idea.trim() || v.idea.length > 16000) return null;
   return {
     provider: v.provider as Provider,
     apiKey: v.apiKey,
@@ -116,7 +116,7 @@ export default async function handler(req: { method?: string; body?: unknown }, 
   }
   const input = validate(req.body);
   if (!input) {
-    res.status(400).json({ error: "Informe provider, apiKey e uma ideia válida (máximo 4.000 caracteres)." });
+    res.status(400).json({ error: "Informe provider, apiKey e uma ideia válida (máximo 16.000 caracteres)." });
     return;
   }
   let sandbox: Sandbox | undefined;
