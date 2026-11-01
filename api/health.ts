@@ -12,11 +12,16 @@ export default function handler(_req: unknown, res: ResponseLike): void {
       "anthropic",
       "gemini",
       "isolated-ai-code-execution",
-      "scene-by-scene-manim-rendering",
+      "manim-video-rendering",
       "mp4-export",
       "project-zip-export",
       "private-vercel-blob-storage",
       "temporary-download-links"
+    ],
+    storageConfigured: Boolean(process.env.BLOB_READ_WRITE_TOKEN),
+    timestamp: new Date().toISOString()
+  });
+}
     ],
     timestamp: new Date().toISOString()
   });
