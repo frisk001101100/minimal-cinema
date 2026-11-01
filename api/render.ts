@@ -169,7 +169,7 @@ export default async function handler(req: { method?: string; body?: unknown }, 
         " z.write(root/'brief.txt','historia/ideia.txt')",
         " z.write(root/'README.txt','LEIA-ME.txt')",
         " z.write(video,'video-final.mp4')"
-      ].join("\\n"), "utf8") }
+      ].join(String.fromCharCode(10)), "utf8") }
     ]);
 
     const render = await sandbox.runCommand({
