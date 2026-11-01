@@ -131,7 +131,61 @@ function App() {
           {story && <>
             <section className="story-summary"><span className="step-label">SINOPSE</span><p>{story.synopsis}</p><div className="story-meta"><span><Film size={14} /> {story.scenes.length} cenas</span><span><Clock3 size={14} /> {totalDuration}s</span><span><AudioLines size={14} /> Narração e diálogos</span></div></section>
             <section className="creation-section"><div className="section-heading"><div><span className="step-label">PERSONAGENS</span><h2>Identidade visual</h2></div><span className="optional-label">Referência para manter consistência</span></div><div className="character-grid">{story.characters.map((c, i) => <article className="character-card" key={i}><strong>{c.name}</strong><p>{c.description}</p><small>{c.visualIdentity}</small></article>)}</div></section>
-            <section className="creation-section"><div className="section-heading"><div><span className="step-label">ROTEIRO</span><h2>Edite suas cenas</h2></div><span className="optional-label">Alterações ficam nesta sessão</span></div><div className="scene-editor"><div className="scene-list">{story.scenes.map((scene, i) => <button key={i} className={activeScene === i ? 'scene-tab active' : 'scene-tab'} onClick={() => setActiveScene(i)}><span>{String(i + 1).padStart(2, '0')}</span><span>Cena {i + 1}</span><small>{scene.durationSeconds}s</small></button>)}</div>{story.scenes[activeScene] && <div className="scene-fields"><div className="scene-field-heading"><strong>Cena {activeScene + 1}</strong><label>DURAÇÃO (SEGUNDOS)<input type="number" min={1} max={180} value={story.scenes[activeScene].durationSeconds} onChange={e => updateScene(activeScene, { durationSeconds: Number(e.target.value) })} /></label></div><label>VISUAL / AÇÃO<textarea rows={4} value={story.scenes[activeScene].visual} onChange={e => updateScene(activeScene, { visual: e.target.value })} /></label><label>NARRAÇÃO<textarea rows={3} value={story.scenes[activeScene].narration} onChange={e => updateScene(activeScene, { narration: e.target.value })} /></label><label>SONS E AMBIENTE<textarea rows={2} value={story.scenes[activeScene].sound} onChange={e => updateScene(activeScene, { sound: e.target.value })} /></label><div className="dialogue-editor"><strong>DIÁLOGOS</strong>{story.scenes[activeScene].dialogue.map((d, i) => <div className="dialogue-row" key={i}><input value={d.character} aria-label="Personagem" onChange={e => { const dialogue = [...story.scenes[activeScene].dialogue]; dialogue[i] = { ...d, character: e.target.value }; updateScene(activeScene, { dialogue }) }} /><input value={d.line} aria-label="Fala" onChange={e => { const dialogue = [...story.scenes[activeScene].dialogue]; dialogue[i] = { ...d, line: e.target.value }; updateScene(activeScene, { dialogue }) }} /></div>)}</div><div className="scene-nav"><button disabled={activeScene === 0} onClick={() => setActiveScene(v => v - 1)}>Cena anterior</button><button disabled={activeScene === story.scenes.length - 1} onClick={() => setActiveScene(v => v + 1)}>Próxima cena →</button></div></div></div></section>
+            <section className="creation-section">
+              <div className="section-heading">
+                <div><span className="step-label">ROTEIRO</span><h2>Edite suas cenas</h2></div>
+                <span className="optional-label">Alterações ficam nesta sessão</span>
+              </div>
+              <div className="scene-editor">
+                <div className="scene-list">
+                  {story.scenes.map((scene, i) => (
+                    <button key={i} className={activeScene === i ? 'scene-tab active' : 'scene-tab'} onClick={() => setActiveScene(i)}>
+                      <span>{String(i + 1).padStart(2, '0')}</span><span>Cena {i + 1}</span><small>{scene.durationSeconds}s</small>
+                    </button>
+                  ))}
+                </div>
+                {story.scenes[activeScene] ? (
+                  <div className="scene-fields">
+                    <div className="scene-field-heading">
+                      <strong>Cena {activeScene + 1}</strong>
+                      <label>DURAÇÃO (SEGUNDOS)
+                        <input type="number" min={1} max={180} value={story.scenes[activeScene].durationSeconds} onChange={e => updateScene(activeScene, { durationSeconds: Number(e.target.value) })} />
+                      </label>
+                    </div>
+                    <label>VISUAL / AÇÃO
+                      <textarea rows={4} value={story.scenes[activeScene].visual} onChange={e => updateScene(activeScene, { visual: e.target.value })} />
+                    </label>
+                    <label>NARRAÇÃO
+                      <textarea rows={3} value={story.scenes[activeScene].narration} onChange={e => updateScene(activeScene, { narration: e.target.value })} />
+                    </label>
+                    <label>SONS E AMBIENTE
+                      <textarea rows={2} value={story.scenes[activeScene].sound} onChange={e => updateScene(activeScene, { sound: e.target.value })} />
+                    </label>
+                    <div className="dialogue-editor">
+                      <strong>DIÁLOGOS</strong>
+                      {story.scenes[activeScene].dialogue.map((dialogueItem, i) => (
+                        <div className="dialogue-row" key={i}>
+                          <input value={dialogueItem.character} aria-label="Personagem" onChange={e => {
+                            const dialogue = [...story.scenes[activeScene].dialogue];
+                            dialogue[i] = { ...dialogueItem, character: e.target.value };
+                            updateScene(activeScene, { dialogue });
+                          }} />
+                          <input value={dialogueItem.line} aria-label="Fala" onChange={e => {
+                            const dialogue = [...story.scenes[activeScene].dialogue];
+                            dialogue[i] = { ...dialogueItem, line: e.target.value };
+                            updateScene(activeScene, { dialogue });
+                          }} />
+                        </div>
+                      ))}
+                    </div>
+                    <div className="scene-nav">
+                      <button disabled={activeScene === 0} onClick={() => setActiveScene(v => v - 1)}>Cena anterior</button>
+                      <button disabled={activeScene === story.scenes.length - 1} onClick={() => setActiveScene(v => v + 1)}>Próxima cena →</button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </section>
             {story.researchNotes.length > 0 && <section className="research-notes"><strong>VERIFICAÇÃO NECESSÁRIA</strong>{story.researchNotes.map((note, i) => <p key={i}>{note}</p>)}</section>}
             <div className="notice">Roteiro pronto e editável. A renderização por cenas e a montagem do MP4 serão conectadas na próxima etapa da engine.</div>
             <div className="bottom-actions"><div className="selection-summary"><span className="summary-icon"><Check size={16} /></span><span><small>ROTEIRO SALVO NESTA SESSÃO</small><strong>{story.scenes.length} cenas · {totalDuration} segundos</strong></span></div><button className="primary-button" onClick={() => { const blob = new Blob([JSON.stringify(story, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'roteiro-minimal-cinema.json'; a.click(); URL.revokeObjectURL(url) }}>Exportar roteiro <span>↓</span></button></div>
