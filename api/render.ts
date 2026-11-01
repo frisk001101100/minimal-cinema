@@ -145,17 +145,18 @@ export default async function handler(req: { method?: string; body?: unknown }, 
   let sandbox: Sandbox | undefined;
   try {
     const python = await generateSceneCode(input);
-    sandbox = await Sandbox.create({ resources: { vcpus: 2 }, timeout: 300000, persistent: false, networkPolicy: "allow-all" });
+    const activeSandbox = await Sandbox.create({ resources: { vcpus: 2 }, timeout: 300000, persistent: false, networkPolicy: "allow-all" });
+    sandbox = activeSandbox;
 
-    const install = await sandbox.runCommand({
+    const install = await activeSandbox.runCommand({
       cmd: "bash",
       args: ["-lc", "apt-get update && apt-get install -y build-essential ffmpeg libcairo2-dev libpango1.0-dev pkg-config python3-dev && python3 -m pip install --break-system-packages manim"],
       sudo: true
     });
     if (install.exitCode !== 0) throw new Error("Não foi possível preparar o ambiente de renderização.");
 
-    await sandbox.update({ networkPolicy: "deny-all" });
-    await sandbox.writeFiles([
+    await activeSandbox.update({ networkPolicy: "deny-all" });
+    await activeSandbox.writeFiles([
       { path: "scene.py", content: Buffer.from(python, "utf8") },
       { path: "brief.txt", content: Buffer.from(input.idea, "utf8") },
       { path: "README.txt", content: Buffer.from("Projeto gerado pelo Minimal Cinema. Inclui o código-fonte da cena e o vídeo renderizado.\n", "utf8") },
@@ -172,19 +173,19 @@ export default async function handler(req: { method?: string; body?: unknown }, 
       ].join(String.fromCharCode(10)), "utf8") }
     ]);
 
-    const render = await sandbox.runCommand({
+    const render = await activeSandbox.runCommand({
       cmd: "python3",
       args: ["-m", "manim", "-qm", "--format", "mp4", "/vercel/sandbox/scene.py", "MinimalCinemaScene"],
       cwd: "/vercel/sandbox"
     });
     if (render.exitCode !== 0) throw new Error("A renderização falhou. A engine pode tentar novamente após ajustar o código.");
 
-    const zipResult = await sandbox.runCommand({ cmd: "python3", args: ["/vercel/sandbox/package_project.py"], cwd: "/vercel/sandbox" });
+    const zipResult = await activeSandbox.runCommand({ cmd: "python3", args: ["/vercel/sandbox/package_project.py"], cwd: "/vercel/sandbox" });
     if (zipResult.exitCode !== 0) throw new Error("O vídeo foi renderizado, mas a montagem do ZIP falhou.");
 
     const videoPath = "/vercel/sandbox/media/videos/scene/720p30/MinimalCinemaScene.mp4";
-    const video = await sandbox.readFileToBuffer({ path: videoPath });
-    const zip = await sandbox.readFileToBuffer({ path: "/vercel/sandbox/minimal-cinema-projeto.zip" });
+    const video = await activeSandbox.readFileToBuffer({ path: videoPath });
+    const zip = await activeSandbox.readFileToBuffer({ path: "/vercel/sandbox/minimal-cinema-projeto.zip" });
     if (!video || !zip) throw new Error("Os arquivos finais não foram encontrados no ambiente de execução.");
 
     const id = crypto.randomUUID();
