@@ -97,7 +97,8 @@ Requisitos:
 async function ensureStorageBucket(): Promise<void> {
   const base = process.env.SUPABASE_URL!;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-  const response = await fetch(`${base.replace(/\\/$/, "")}/storage/v1/bucket`, {
+  const root = base.endsWith("/") ? base.slice(0, -1) : base;
+  const response = await fetch(`${root}/storage/v1/bucket`, {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, apikey: key, "Content-Type": "application/json" },
     body: JSON.stringify({ id: "minimal-cinema", name: "minimal-cinema", public: false, file_size_limit: 524288000 })
