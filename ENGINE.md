@@ -1,6 +1,6 @@
 # Minimal Cinema — Engine v0.3
 
-A engine combina geração de roteiro e um protótipo de renderização por cenas em ambiente isolado no servidor.
+A engine combina geração de roteiro por IA com uma primeira etapa experimental de renderização audiovisual executada no servidor.
 
 ## Endpoints
 
@@ -11,33 +11,33 @@ Retorna o estado básico do serviço e as capacidades registradas.
 Gera história, personagens e roteiro estruturado usando OpenAI, Anthropic ou Gemini. Campos: `provider`, `apiKey`, `model`, `category`, `idea`, `durationSeconds`, `format` e `language`.
 
 ### POST /api/render
-Recebe `provider`, `apiKey`, `model`, `category`, `language` e o objeto `story` retornado por `/api/story` (incluindo personagens e cenas editadas).
+Recebe `provider`, `apiKey`, `model`, `idea`, `category`, `durationSeconds` e `language`. A interface envia um resumo da história e das cenas editadas no campo `idea`.
 
-Fluxo:
-1. O modelo escolhido gera um programa Manim independente para cada cena.
+Fluxo experimental atual:
+1. O modelo escolhido escreve um programa Python Manim a partir do roteiro e das cenas.
 2. A API cria uma Vercel Sandbox (microVM Firecracker) no servidor.
-3. Instala as dependências audiovisuais dentro da microVM.
-4. Bloqueia a rede da microVM antes de executar qualquer código gerado.
-5. Renderiza cada cena separadamente.
-6. O FFmpeg junta as cenas em um MP4.
-7. A API cria um ZIP com o roteiro, os programas das cenas e o MP4.
-8. MP4 e ZIP são enviados a um Vercel Blob privado; a API devolve URLs assinadas de download válidas por 24 horas.
+3. Dependências audiovisuais são preparadas dentro da microVM.
+4. A política de rede da microVM é bloqueada antes de executar o código gerado.
+5. Manim renderiza uma animação visual em MP4.
+6. A API cria um ZIP com o MP4, o código-fonte e a ideia/brief.
+7. MP4 e ZIP são enviados para um Vercel Blob privado.
+8. A API devolve URLs assinadas para download, válidas por 24 horas.
 
-Limites experimentais atuais: até 8 cenas e 90 segundos no total. A renderização é síncrona e sujeita ao limite de duração da Vercel Function. A versão atual produz animações vetoriais Manim sem narração em áudio; a integração de voz, música e efeitos será adicionada separadamente.
+Limites atuais: duração de renderização limitada a 90 segundos por solicitação e execução síncrona sujeita ao limite da Vercel Function. O renderizador atual ainda produz uma animação única a partir do roteiro completo; a renderização isolada de cada cena e sua regeneração individual serão etapas seguintes. A versão atual não inclui narração em áudio, música nem efeitos sonoros finais.
 
 ## Armazenamento
 
-O projeto usa Vercel Blob privado, na região São Paulo (`gru1`). Não usa Supabase. A variável `BLOB_READ_WRITE_TOKEN` é provisionada pela Vercel ao conectar o Blob Store ao projeto.
+O projeto usa um Vercel Blob privado, na região São Paulo (`gru1`). Não usa Supabase. A Vercel provisionou `BLOB_READ_WRITE_TOKEN` no projeto ao criar o Blob Store.
 
-Links assinados expiram após 24 horas. A rotina `GET /api/cleanup`, agendada diariamente, remove blobs com mais de 48 horas. A rotina exige `CRON_SECRET` no ambiente de produção.
+Os links assinados expiram após 24 horas. A rotina `GET /api/cleanup`, agendada diariamente, remove blobs com mais de 48 horas. A rotina é protegida por `CRON_SECRET`.
 
 ## Segurança
 
 - A chave de IA é encaminhada ao provedor escolhido e não é enviada para a microVM.
 - O código gerado é executado somente em microVM descartável.
 - A rede da microVM é bloqueada antes de executar código gerado.
-- Imports e operações perigosas são rejeitados antes da execução; o isolamento da microVM continua sendo a barreira principal.
-- A rota de renderização aplica uma limitação best-effort por IP. Isso não substitui autenticação e rate limiting distribuído antes de um lançamento público.
+- Imports e operações perigosas são rejeitados antes da execução; o isolamento da microVM é a barreira principal.
+- A rota de renderização aplica uma limitação best-effort por IP. Isso não substitui autenticação nem rate limiting distribuído antes de um lançamento público.
 
 ## Desenvolvimento
 
@@ -47,4 +47,4 @@ npm run build
 vercel dev
 ```
 
-A execução da renderização requer Vercel Sandbox e Vercel Blob habilitados no projeto.
+A renderização requer Vercel Sandbox e Vercel Blob habilitados no projeto.
