@@ -5,17 +5,18 @@ export default function handler(_req: unknown, res: ResponseLike): void {
   res.status(200).json({
     ok: true,
     service: "minimal-cinema-engine",
-    version: "0.2.0",
+    version: "0.3.0",
     capabilities: [
       "story-generation",
       "openai",
       "anthropic",
       "gemini",
       "isolated-ai-code-execution",
-      "manim-video-rendering",
+      "scene-by-scene-manim-rendering",
       "mp4-export",
       "project-zip-export",
-      "supabase-storage"
+      "private-vercel-blob-storage",
+      "temporary-download-links"
     ],
     timestamp: new Date().toISOString()
   });
