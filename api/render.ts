@@ -70,35 +70,35 @@ Requisitos:
     url = "https://api.anthropic.com/v1/messages";
     headers = { "x-api-key": input.apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" };
     body = { model, max_tokens: 7000, temperature: 0.4, messages: [{ role: "user", content: prompt }] };
-    read = p => Array.isArray(p?.content) ? p.content.filter((x: any) => x.type === "text").map((x: any) => x.text).join("\\n") : "";
+    read = p => Array.isArray(p?.content) ? p.content.filter((x: any) => x.type === "text").map((x: any) => x.text).join("\n") : "";
   } else {
-    url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(input.apiKey)}`;
-    headers = { "Content-Type": "application/json" };
+    url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+    headers = { "Content-Type": "application/json", "x-goog-api-key": input.apiKey };
     body = { generationConfig: { temperature: 0.4 }, contents: [{ role: "user", parts: [{ text: prompt }] }] };
-    read = p => p?.candidates?.[0]?.content?.parts?.map((x: any) => x.text ?? "").join("\\n") ?? "";
+    read = p => p?.candidates?.[0]?.content?.parts?.map((x: any) => x.text ?? "").join("\n") ?? "";
   }
 
   const response = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(`Falha no provedor de IA (${response.status}).`);
-  const raw = read(payload).trim().replace(/^```(?:python)?\\s*/i, "").replace(/\\s*```$/, "");
+  const raw = read(payload).trim().replace(/^```(?:python)?\s*/i, "").replace(/\s*```$/, "");
   if (!raw || raw.length > 50000) throw new Error("A IA não retornou um programa válido.");
-  const forbidden = /\\b(subprocess|socket|requests|urllib|httpx|os\\.|sys\\.modules|eval\\s*\\(|exec\\s*\\(|__import__|open\\s*\\(|pathlib|shutil|ctypes)\\b/;
-  if (forbidden.test(raw) || !/class\\s+MinimalCinemaScene\\s*\\(\\s*Scene\\s*\\)/.test(raw) || !/def\\s+construct\\s*\\(/.test(raw)) {
+  const forbidden = /\b(subprocess|socket|requests|urllib|httpx|os\.|sys\.modules|eval\s*\(|exec\s*\(|__import__|open\s*\(|pathlib|shutil|ctypes)\b/;
+  if (forbidden.test(raw) || !/class\s+MinimalCinemaScene\s*\(\s*Scene\s*\)/.test(raw) || !/def\s+construct\s*\(/.test(raw)) {
     throw new Error("O código gerado não passou pela validação de segurança.");
   }
-  const imports = [...raw.matchAll(/^\\s*(?:from|import)\\s+([a-zA-Z0-9_.]+)/gm)].map(m => m[1].split(".")[0]);
+  const imports = [...raw.matchAll(/^\s*(?:from|import)\s+([a-zA-Z0-9_.]+)/gm)].map(m => m[1].split(".")[0]);
   if (imports.some(name => !["manim", "math", "random", "numpy"].includes(name))) {
     throw new Error("O código tentou importar uma biblioteca não permitida.");
   }
   return raw;
 }
 
-async function uploadArtifact(path: string, bytes: Buffer, contentType: string): Promise<string> {
+async function ensureStorageBucket(): Promise<void> {\n  const base = process.env.SUPABASE_URL!;\n  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;\n  const response = await fetch(`${base.replace(/\\/$/, "")}/storage/v1/bucket`, {\n    method: "POST",\n    headers: { Authorization: `Bearer ${key}`, apikey: key, "Content-Type": "application/json" },\n    body: JSON.stringify({ id: "minimal-cinema", name: "minimal-cinema", public: false, file_size_limit: 524288000 })\n  });\n  if (!response.ok && response.status !== 409) throw new Error("Não foi possível preparar o bucket privado do Supabase Storage.");\n}\n\nasync function uploadArtifact(path: string, bytes: Buffer, contentType: string): Promise<string> {
   const base = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!base || !key) throw new Error("Configure SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY na Vercel para habilitar a entrega dos arquivos.");
-  const root = base.replace(/\\/$/, "");
+  const root = base.replace(/\/$/, "");
   const headers = { Authorization: `Bearer ${key}`, apikey: key, "Content-Type": contentType, "x-upsert": "true" };
   const upload = await fetch(`${root}/storage/v1/object/minimal-cinema/${path}`, { method: "POST", headers, body: new Uint8Array(bytes) });
   if (!upload.ok) throw new Error(`Falha ao armazenar arquivo no Supabase (${upload.status}). Crie o bucket privado 'minimal-cinema'.`);
@@ -109,7 +109,7 @@ async function uploadArtifact(path: string, bytes: Buffer, contentType: string):
   });
   const result = await signed.json().catch(() => ({}));
   if (!signed.ok || typeof result.signedURL !== "string") throw new Error("O arquivo foi enviado, mas não foi possível gerar o link temporário.");
-  return result.signedURL.startsWith("http") ? result.signedURL : `${root}/storage/v1${result.signedURL}`;
+  return result.signedURL.startsWith("http") ? result.signedURL : result.signedURL.startsWith("/storage/v1") ? `${root}${result.signedURL}` : `${root}/storage/v1${result.signedURL}`;
 }
 
 export default async function handler(req: { method?: string; body?: unknown }, res: ResponseLike): Promise<void> {
