@@ -149,7 +149,7 @@ export default async function handler(req: { method?: string; body?: unknown }, 
 
     const install = await sandbox.runCommand({
       cmd: "bash",
-      args: ["-lc", "apt-get update && apt-get install -y ffmpeg libcairo2-dev libpango1.0-dev pkg-config python3-dev && python3 -m pip install --break-system-packages manim"],
+      args: ["-lc", "apt-get update && apt-get install -y build-essential ffmpeg libcairo2-dev libpango1.0-dev pkg-config python3-dev && python3 -m pip install --break-system-packages manim"],
       sudo: true
     });
     if (install.exitCode !== 0) throw new Error("Não foi possível preparar o ambiente de renderização.");
