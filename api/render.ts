@@ -1,4 +1,5 @@
 import { Sandbox } from "@vercel/sandbox";
+import { issueSignedToken, presignUrl, put } from "@vercel/blob";
 
 type Provider = "openai" | "anthropic" | "gemini";
 type Input = {
@@ -94,34 +95,15 @@ Requisitos:
   return raw;
 }
 
-async function ensureStorageBucket(): Promise<void> {
-  const base = process.env.SUPABASE_URL!;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-  const root = base.endsWith("/") ? base.slice(0, -1) : base;
-  const response = await fetch(`${root}/storage/v1/bucket`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}`, apikey: key, "Content-Type": "application/json" },
-    body: JSON.stringify({ id: "minimal-cinema", name: "minimal-cinema", public: false, file_size_limit: 524288000 })
-  });
-  if (!response.ok && response.status !== 409) throw new Error("Não foi possível preparar o bucket privado do Supabase Storage.");
-}
-
 async function uploadArtifact(path: string, bytes: Buffer, contentType: string): Promise<string> {
-  const base = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!base || !key) throw new Error("Configure SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY na Vercel para habilitar a entrega dos arquivos.");
-  const root = base.replace(/\/$/, "");
-  const headers = { Authorization: `Bearer ${key}`, apikey: key, "Content-Type": contentType, "x-upsert": "true" };
-  const upload = await fetch(`${root}/storage/v1/object/minimal-cinema/${path}`, { method: "POST", headers, body: new Uint8Array(bytes) });
-  if (!upload.ok) throw new Error(`Falha ao armazenar arquivo no Supabase (${upload.status}). Crie o bucket privado 'minimal-cinema'.`);
-  const signed = await fetch(`${root}/storage/v1/object/sign/minimal-cinema/${path}`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}`, apikey: key, "Content-Type": "application/json" },
-    body: JSON.stringify({ expiresIn: 86400 })
+  const blob = await put(path, bytes, { access: "private", contentType });
+  const token = await issueSignedToken({ pathname: blob.pathname, operations: ["get"] });
+  const signed = await presignUrl(token, {
+    pathname: blob.pathname,
+    operation: "get",
+    validUntil: Date.now() + 24 * 60 * 60 * 1000
   });
-  const result = await signed.json().catch(() => ({}));
-  if (!signed.ok || typeof result.signedURL !== "string") throw new Error("O arquivo foi enviado, mas não foi possível gerar o link temporário.");
-  return result.signedURL.startsWith("http") ? result.signedURL : result.signedURL.startsWith("/storage/v1") ? `${root}${result.signedURL}` : `${root}/storage/v1${result.signedURL}`;
+  return signed.presignedUrl;
 }
 
 export default async function handler(req: { method?: string; body?: unknown }, res: ResponseLike): Promise<void> {
@@ -137,11 +119,6 @@ export default async function handler(req: { method?: string; body?: unknown }, 
     res.status(400).json({ error: "Informe provider, apiKey e uma ideia válida (máximo 4.000 caracteres)." });
     return;
   }
-  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    res.status(503).json({ error: "A engine de renderização precisa do Supabase Storage. Configure SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY e crie o bucket privado 'minimal-cinema'." });
-    return;
-  }
-
   let sandbox: Sandbox | undefined;
   try {
     const python = await generateSceneCode(input);
@@ -188,10 +165,10 @@ export default async function handler(req: { method?: string; body?: unknown }, 
     const zip = await activeSandbox.readFileToBuffer({ path: "/vercel/sandbox/minimal-cinema-projeto.zip" });
     if (!video || !zip) throw new Error("Os arquivos finais não foram encontrados no ambiente de execução.");
 
-    const id = crypto.randomUUID();
+    const id = Date.now() + "-" + crypto.randomUUID();
     const [mp4Url, zipUrl] = await Promise.all([
-      uploadArtifact(`${id}/video-final.mp4`, video, "video/mp4"),
-      uploadArtifact(`${id}/minimal-cinema-projeto.zip`, zip, "application/zip")
+      uploadArtifact(`exports/${id}/video-final.mp4`, video, "video/mp4"),
+      uploadArtifact(`exports/${id}/minimal-cinema-projeto.zip`, zip, "application/zip")
     ]);
     res.status(200).json({ ok: true, title: "Produção Minimal Cinema", videoUrl: mp4Url, projectZipUrl: zipUrl, expiresInSeconds: 86400 });
   } catch (error) {
