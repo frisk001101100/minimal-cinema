@@ -20,6 +20,9 @@ type ResponseLike = {
 
 export const config = { maxDuration: 300 };
 
+const recentRequests = new Map<string, number>();
+let activeRenders = 0;
+
 function validate(value: unknown): Input | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const v = value as Record<string, unknown>;
@@ -106,7 +109,7 @@ async function uploadArtifact(path: string, bytes: Buffer, contentType: string):
   return signed.presignedUrl;
 }
 
-export default async function handler(req: { method?: string; body?: unknown }, res: ResponseLike): Promise<void> {
+export default async function handler(req: { method?: string; body?: unknown; headers?: Record<string, string | string[] | undefined> }, res: ResponseLike): Promise<void> {
   res.setHeader?.("Cache-Control", "no-store");
   res.setHeader?.("X-Content-Type-Options", "nosniff");
   if (req.method !== "POST") {
@@ -119,6 +122,22 @@ export default async function handler(req: { method?: string; body?: unknown }, 
     res.status(400).json({ error: "Informe provider, apiKey e uma ideia válida (máximo 16.000 caracteres)." });
     return;
   }
+  const forwarded = req.headers?.["x-forwarded-for"];
+  const clientIp = (Array.isArray(forwarded) ? forwarded[0] : forwarded)?.split(",")[0]?.trim() || "unknown";
+  const now = Date.now();
+  const lastRequest = recentRequests.get(clientIp) || 0;
+  if (now - lastRequest < 180000) {
+    res.status(429).json({ error: "Aguarde alguns minutos antes de iniciar outra renderização." });
+    return;
+  }
+  if (activeRenders >= 2) {
+    res.status(429).json({ error: "O estúdio está com duas produções em andamento. Tente novamente em instantes." });
+    return;
+  }
+  recentRequests.set(clientIp, now);
+  for (const [ip, timestamp] of recentRequests) if (now - timestamp > 3600000) recentRequests.delete(ip);
+  activeRenders += 1;
+
   let sandbox: Sandbox | undefined;
   try {
     const python = await generateSceneCode(input);
@@ -176,5 +195,6 @@ export default async function handler(req: { method?: string; body?: unknown }, 
     res.status(500).json({ error: message });
   } finally {
     if (sandbox) await sandbox.stop().catch(() => undefined);
+    activeRenders = Math.max(0, activeRenders - 1);
   }
 }
