@@ -94,7 +94,8 @@ Requisitos:
   return raw;
 }
 
-async function ensureStorageBucket(): Promise<void> {\n  const base = process.env.SUPABASE_URL!;\n  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;\n  const response = await fetch(`${base.replace(/\\/$/, "")}/storage/v1/bucket`, {\n    method: "POST",\n    headers: { Authorization: `Bearer ${key}`, apikey: key, "Content-Type": "application/json" },\n    body: JSON.stringify({ id: "minimal-cinema", name: "minimal-cinema", public: false, file_size_limit: 524288000 })\n  });\n  if (!response.ok && response.status !== 409) throw new Error("Não foi possível preparar o bucket privado do Supabase Storage.");\n}\n\nasync function uploadArtifact(path: string, bytes: Buffer, contentType: string): Promise<string> {
+async function ensureStorageBucket(): Promise<void> {
+  const base = process.env.SUPABASE_URL!;\n  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;\n  const response = await fetch(`${base.replace(/\\/$/, "")}/storage/v1/bucket`, {\n    method: "POST",\n    headers: { Authorization: `Bearer ${key}`, apikey: key, "Content-Type": "application/json" },\n    body: JSON.stringify({ id: "minimal-cinema", name: "minimal-cinema", public: false, file_size_limit: 524288000 })\n  });\n  if (!response.ok && response.status !== 409) throw new Error("Não foi possível preparar o bucket privado do Supabase Storage.");\n}\n\nasync function uploadArtifact(path: string, bytes: Buffer, contentType: string): Promise<string> {
   const base = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!base || !key) throw new Error("Configure SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY na Vercel para habilitar a entrega dos arquivos.");
@@ -147,9 +148,17 @@ export default async function handler(req: { method?: string; body?: unknown }, 
       { path: "scene.py", content: Buffer.from(python, "utf8") },
       { path: "brief.txt", content: Buffer.from(input.idea, "utf8") },
       { path: "README.txt", content: Buffer.from("Projeto gerado pelo Minimal Cinema. Inclui o código-fonte da cena e o vídeo renderizado.\n", "utf8") },
-      { path: "package_project.py", content: Buffer.from(
-        "from zipfile import ZipFile, ZIP_DEFLATED\nfrom pathlib import Path\nroot=Path('/vercel/sandbox')\nvideo=next(root.glob('media/videos/scene/*/MinimalCinemaScene.mp4'))\nwith ZipFile(root/'minimal-cinema-projeto.zip','w',ZIP_DEFLATED) as z:\n z.write(root/'scene.py','cenas/scene.py')\n z.write(root/'brief.txt','historia/ideia.txt')\n z.write(root/'README.txt','LEIA-ME.txt')\n z.write(video,'video-final.mp4')\n"
-      ) }
+      { path: "package_project.py", content: Buffer.from([
+        "from zipfile import ZipFile, ZIP_DEFLATED",
+        "from pathlib import Path",
+        "root=Path('/vercel/sandbox')",
+        "video=next(root.glob('media/videos/scene/*/MinimalCinemaScene.mp4'))",
+        "with ZipFile(root/'minimal-cinema-projeto.zip','w',ZIP_DEFLATED) as z:",
+        " z.write(root/'scene.py','cenas/scene.py')",
+        " z.write(root/'brief.txt','historia/ideia.txt')",
+        " z.write(root/'README.txt','LEIA-ME.txt')",
+        " z.write(video,'video-final.mp4')"
+      ].join("\\n"), "utf8") }
     ]);
 
     const render = await sandbox.runCommand({
