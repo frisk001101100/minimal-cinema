@@ -39,6 +39,8 @@ function App() {
   const [story, setStory] = useState<Story | null>(null)
   const [view, setView] = useState<'create' | 'story'>('create')
   const [activeScene, setActiveScene] = useState(0)
+  const [rendering, setRendering] = useState(false)
+  const [renderResult, setRenderResult] = useState<{ videoUrl: string; projectZipUrl: string; expiresInSeconds: number } | null>(null)
 
   const updateScene = (index: number, patch: Partial<Scene>) => {
     setStory(current => current ? { ...current, scenes: current.scenes.map((scene, i) => i === index ? { ...scene, ...patch } : scene) } : current)
@@ -64,6 +66,40 @@ function App() {
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'Erro ao conectar com a API.')
     } finally { setLoading(false) }
+  }
+
+  const generateVideo = async () => {
+    if (!story) return
+    if (!apiKey.trim()) { setNotice('Insira novamente sua chave de API para renderizar o vídeo.'); return }
+    setRendering(true)
+    setNotice('Preparando a animação no servidor. Esta etapa pode levar alguns minutos.')
+    setRenderResult(null)
+    try {
+      const sceneBrief = story.scenes.map((scene, index) =>
+        'CENA ' + (index + 1) + ' (' + scene.durationSeconds + 's)\\nVISUAL: ' + scene.visual +
+        '\\nNARRAÇÃO: ' + scene.narration +
+        '\\nDIÁLOGOS: ' + scene.dialogue.map(d => d.character + ': ' + d.line).join(' | ') +
+        '\\nSOM: ' + scene.sound
+      ).join('\\n\\n')
+      const response = await fetch('/api/render', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          provider, apiKey, model, category: selected,
+          idea: story.title + '\\n' + story.synopsis + '\\n' + sceneBrief,
+          durationSeconds: Math.min(90, Math.max(15, totalDuration)),
+          language: 'Português brasileiro'
+        })
+      })
+      const payload = await response.json()
+      if (!response.ok) throw new Error(payload.error || 'Não foi possível renderizar o vídeo.')
+      setRenderResult(payload)
+      setNotice('A prévia animada foi gerada. O protótipo atual ainda não inclui narração em áudio.')
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Erro ao renderizar o vídeo.')
+    } finally {
+      setRendering(false)
+    }
   }
 
   const backToCreate = () => { setView('create'); setNotice('') }
@@ -187,8 +223,9 @@ function App() {
               </div>
             </section>
             {story.researchNotes.length > 0 && <section className="research-notes"><strong>VERIFICAÇÃO NECESSÁRIA</strong>{story.researchNotes.map((note, i) => <p key={i}>{note}</p>)}</section>}
-            <div className="notice">Roteiro pronto e editável. A renderização por cenas e a montagem do MP4 serão conectadas na próxima etapa da engine.</div>
-            <div className="bottom-actions"><div className="selection-summary"><span className="summary-icon"><Check size={16} /></span><span><small>ROTEIRO SALVO NESTA SESSÃO</small><strong>{story.scenes.length} cenas · {totalDuration} segundos</strong></span></div><button className="primary-button" onClick={() => { const blob = new Blob([JSON.stringify(story, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'roteiro-minimal-cinema.json'; a.click(); URL.revokeObjectURL(url) }}>Exportar roteiro <span>↓</span></button></div>
+            <div className="notice">Roteiro pronto e editável. A renderização experimental cria uma animação visual no servidor; narração em áudio e edição individual das cenas ainda serão integradas.</div>
+            {renderResult && <section className="render-result"><strong>ARQUIVOS PRONTOS</strong><div><a href={renderResult.videoUrl} target="_blank" rel="noreferrer">Baixar vídeo MP4 ↗</a><a href={renderResult.projectZipUrl} target="_blank" rel="noreferrer">Baixar projeto ZIP ↗</a></div><small>Links temporários: expiram em 24 horas.</small></section>}
+            <div className="bottom-actions"><div className="selection-summary"><span className="summary-icon"><Check size={16} /></span><span><small>ROTEIRO SALVO NESTA SESSÃO</small><strong>{story.scenes.length} cenas · {totalDuration} segundos</strong></span></div><div className="action-buttons"><button className="secondary-button" onClick={() => { const blob = new Blob([JSON.stringify(story, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'roteiro-minimal-cinema.json'; a.click(); URL.revokeObjectURL(url) }}>Exportar roteiro</button><button className="primary-button" disabled={rendering} onClick={generateVideo}>{rendering ? <><LoaderCircle className="spin" size={15} /> Renderizando…</> : <>Gerar prévia animada <span>→</span></>}</button></div></div>
           </>}
           <footer className="footer"><span>MINIMAL CINEMA © 2026</span><span>Feito para contar histórias.</span><span className="footer-version">ENGINE · V0.2</span></footer>
         </div>}
