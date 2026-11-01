@@ -116,9 +116,10 @@ export function normalizeStory(raw: unknown, requestedDuration: number): StoryRe
     description: String(c?.description ?? ""),
     visualIdentity: String(c?.visualIdentity ?? "")
   })) : [];
-  const scenes = item.scenes.map((s: any, index: number) => ({
+  const rawScenes = item.scenes as unknown[];
+  const scenes = rawScenes.map((s: any, index: number) => ({
     number: Number.isFinite(Number(s?.number)) ? Number(s.number) : index + 1,
-    durationSeconds: Math.max(1, Math.min(180, Number(s?.durationSeconds) || Math.round(requestedDuration / item.scenes.length))),
+    durationSeconds: Math.max(1, Math.min(180, Number(s?.durationSeconds) || Math.round(requestedDuration / rawScenes.length))),
     visual: String(s?.visual ?? ""),
     narration: String(s?.narration ?? ""),
     dialogue: Array.isArray(s?.dialogue) ? s.dialogue.map((d: any) => ({ character: String(d?.character ?? "Personagem"), line: String(d?.line ?? "") })) : [],
