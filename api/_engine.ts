@@ -137,7 +137,7 @@ export function normalizeStory(raw: unknown, requestedDuration: number): StoryRe
 
 export async function generateWithProvider(input: StoryRequest): Promise<StoryResult> {
   const prompt = buildStoryPrompt(input);
-  const model = input.model || (input.provider === "openai" ? "gpt-4o-mini" : input.provider === "anthropic" ? "claude-3-5-haiku-latest" : "gemini-2.0-flash");
+  const model = input.model || (input.provider === "openai" ? "gpt-4o-mini" : input.provider === "anthropic" ? "claude-haiku-4-5-20251001" : "gemini-2.5-flash");
   let endpoint: string;
   let headers: Record<string, string>;
   let body: unknown;
