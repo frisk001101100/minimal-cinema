@@ -22,7 +22,3 @@ export default function handler(_req: unknown, res: ResponseLike): void {
     timestamp: new Date().toISOString()
   });
 }
-    ],
-    timestamp: new Date().toISOString()
-  });
-}
